@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>DK Rice</title>
+<style>
+  :root{
+    --primary:#4CAF50;
+    --card-bg:#fff;
+    --body-bg:#f5f5f5;
+  }
+  body{font-family:Arial, Helvetica, sans-serif;margin:0;background:var(--body-bg);}
+  header{background:var(--primary);color:#fff;padding:14px 10px;text-align:center;}
+  .container{width:95%;max-width:1100px;margin:18px auto;}
+  #searchBar{width:100%;padding:10px;border-radius:6px;border:1px solid #ccc;margin-bottom:14px;box-sizing:border-box;}
+  .row{display:flex;gap:14px;flex-wrap:wrap}
+  .left{flex:1 1 300px}
+  .right{flex:2 1 600px}
+  .card{background:var(--card-bg);border-radius:8px;padding:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08);margin-bottom:12px}
+  .product-card{background:var(--card-bg);border-radius:8px;padding:12px;margin:8px;display:inline-block;width:240px;vertical-align:top;box-shadow:0 2px 6px rgba(0,0,0,0.08)}
+  .product-media img, .product-media video{width:100%;border-radius:6px;display:block;margin-bottom:8px}
+  .btn{background:var(--primary);color:#fff;padding:8px 10px;border-radius:6px;text-decoration:none;border:none;cursor:pointer;display:inline-block}
+  input[type="text"], input[type="number"], input[type="password"], input[type="file"], input[type="color"], select{width:100%;padding:8px;margin:6px 0;border-radius:6px;border:1px solid #ccc;box-sizing:border-box}
+  label{font-size:13px;color:#333}
+  .small{font-size:13px;color:#666;margin-top:6px}
+  .likes{color:red;cursor:pointer;font-weight:bold;margin:6px 0}
+  .views{color:#333;font-weight:600}
+  @media(max-width:700px){
+    .product-card{width:46%}
+  }
+  @media(max-width:460px){
+    .product-card{width:100%}
+    .row{flex-direction:column}
+  }
+</style>
+</head>
+<body>
+
+<header><h1>DK Rice</h1></header>
+
+<div class="container">
+
+  <!-- Search -->
+  <input id="searchBar" placeholder="Search products by name..." oninput="searchProducts()" />
+
+  <div class="row">
+    <!-- Left: Admin / Settings -->
+    <div class="left">
+      <div id="loginSection" class="card">
+        <h3>Admin Login</h3>
+        <input id="adminUsername" placeholder="Username" type="text"/>
+        <input id="adminPassword" placeholder="Password" type="password"/>
+        <button class="btn" onclick="adminLogin()">Login</button>
+      </div>
+
+      <div id="adminPanel" class="card" style="display:none">
+        <h3>Admin Panel</h3>
+
+        <label>Product Name</label>
+        <input id="productName" type="text" placeholder="Ex: Basmati Rice 5kg"/>
+
+        <label>Price (₹)</label>
+        <input id="productPrice" type="number" placeholder="Ex: 350"/>
+
+        <label>Choose up to 4 images</label>
+        <input id="productImages" type="file" accept="image/*" multiple/>
+
+        <label>Choose video (mp4) — optional (max ~60MB)</label>
+        <input id="productVideo" type="file" accept="video/mp4"/>
+
+        <button class="btn" onclick="addProduct()">Add Product</button>
+
+        <hr style="margin:12px 0"/>
+
+        <h4>Change Admin Credentials</h4>
+        <input id="newAdminUsername" placeholder="New username" type="text"/>
+        <input id="newAdminPassword" placeholder="New password" type="password"/>
+        <button class="btn" onclick="changeAdminCreds()">Update Credentials</button>
+
+        <hr style="margin:12px 0"/>
+
+        <h4>Website Settings</h4>
+        <label>Change background color</label>
+        <input id="bgColorPicker" type="color" value="#f5f5f5" onchange="changeBgColor()"/>
+
+        <div style="margin-top:10px">
+          <button class="btn" onclick="logoutAdmin()">Logout</button>
+        </div>
+      </div>
+
+      <div class="card small">
+        <strong>Note:</strong>
+        <ul style="padding-left:18px;margin:8px 0 0 0">
+          <li>Images & video are converted to data URLs so they show after reload.</li>
+          <li>Likes: one-per-user (stored locally).</li>
+          <li>WhatsApp number fixed in product: <code>+919036028820</code></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Right: Products -->
+    <div class="right">
+      <div id="products" class="row"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* -------------------------
+   Storage keys & defaults
+------------------------- */
+const STORAGE_PRODUCTS = 'dkProducts_v2';
+const STORAGE_USERLIKES = 'dkUserLikes_v2';
+const STORAGE_ADMIN_USER = 'adminUser_v2';
+const STORAGE_ADMIN_PASS = 'adminPass_v2';
+const DEFAULT_WHATSAPP = '919036028820';
+
+/* Default admin login */
+let adminUser = "Dkstar@sp";
+let adminPass = "dkstar8747"; // <-- updated password
+
+/* Load arrays from storage */
+let products = JSON.parse(localStorage.getItem(STORAGE_PRODUCTS) || '[]');
+let userLikes = JSON.parse(localStorage.getItem(STORAGE_USERLIKES) || '{}');
+
+/* File to base64 */
+function fileToDataURL(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=()=>resolve(reader.result);
+    reader.onerror=()=>reject(new Error("File read error"));
+    reader.readAsDataURL(file);
+  });
+}
+
+/* Admin login/logout */
+function adminLogin(){
+  const u=document.getElementById('adminUsername').value.trim();
+  const p=document.getElementById('adminPassword').value.trim();
+  if(u===adminUser && p===adminPass){
+    document.getElementById('loginSection').style.display='none';
+    document.getElementById('adminPanel').style.display='block';
+    document.getElementById('adminUsername').value='';
+    document.getElementById('adminPassword').value='';
+  } else alert('Invalid credentials!');
+}
+function logoutAdmin(){
+  document.getElementById('adminPanel').style.display='none';
+  document.getElementById('loginSection').style.display='block';
+}
+
+/* Change admin credentials */
+function changeAdminCreds(){
+  const newU=document.getElementById('newAdminUsername').value.trim();
+  const newP=document.getElementById('newAdminPassword').value.trim();
+  if(!newU || !newP){ alert('Fill both username & password'); return; }
+  adminUser=newU;
+  adminPass=newP;
+  alert('Admin credentials updated!');
+  document.getElementById('newAdminUsername').value='';
+  document.getElementById('newAdminPassword').value='';
+}
+
+/* Change background color */
+function changeBgColor(){
+  const color=document.getElementById('bgColorPicker').value;
+  document.body.style.background=color;
+}
+
+/* Add product */
+async function addProduct(){
+  const name=document.getElementById('productName').value.trim();
+  const price=document.getElementById('productPrice').value.trim();
+  const imageFiles=document.getElementById('productImages').files;
+  const videoFile=document.getElementById('productVideo').files[0];
+
+  if(!name || !price){ alert('Enter name & price'); return; }
+  if(!imageFiles || imageFiles.length===0){ alert('Select at least 1 image'); return; }
+  if(imageFiles.length>4){ alert('Max 4 images allowed'); return; }
+
+  const images=[];
+  try{
+    for(let i=0;i<imageFiles.length && i<4;i++){
+      const file=imageFiles[i];
+      if(file.size>5*1024*1024){ alert('Image too large'); return; }
+      images.push(await fileToDataURL(file));
+    }
+  }catch(e){ alert('Error reading images'); return; }
+
+  let videoData='';
+  if(videoFile){
+    if(videoFile.size>60*1024*1024){ alert('Video too large'); return; }
+    try{ videoData=await fileToDataURL(videoFile); }catch(e){ alert('Error reading video'); return; }
+  }
+
+  const product={id:Date.now()+Math.floor(Math.random()*1000),name,price,images,video:videoData,whatsapp:DEFAULT_WHATSAPP,likes:0,views:0,createdAt:new Date().toISOString()};
+  products.push(product);
+  localStorage.setItem(STORAGE_PRODUCTS,JSON.stringify(products));
+  displayProducts();
+  document.getElementById('productName').value='';
+  document.getElementById('productPrice').value='';
+  document.getElementById('productImages').value='';
+  document.getElementById('productVideo').value='';
+  alert('Product added successfully');
+}
+
+/* Display products */
+function displayProducts(filterText=''){
+  const container=document.getElementById('products');
+  container.innerHTML='';
+  const normalizedSearch=filterText.trim().toLowerCase();
+  products.forEach(p=>{
+    if(normalizedSearch && !p.name.toLowerCase().includes(normalizedSearch)) return;
+    p.views=(p.views||0)+1;
+
+    const card=document.createElement('div');
+    card.className='product-card card';
+
+    const media=document.createElement('div');
+    media.className='product-media';
+
+    const img=document.createElement('img');
+    img.src=p.images && p.images.length?p.images[0]:'';
+    img.alt=p.name;
+    img.style.cursor='pointer';
+    let idx=0;
+    img.onclick=()=>{ idx=(idx+1)%p.images.length; img.src=p.images[idx]; };
+    media.appendChild(img);
+
+    if(p.video){
+      const vid=document.createElement('video');
+      vid.controls=true; vid.src=p.video; vid.style.marginTop='8px';
+      media.appendChild(vid);
+    }
+
+    const title=document.createElement('h3'); title.textContent=p.name;
+    const price=document.createElement('p'); price.textContent='₹'+p.price; price.className='small';
+
+    const qtyLabel=document.createElement('label'); qtyLabel.textContent='Qty:';
+    const qtySelect=document.createElement('select'); qtySelect.id=`qty_${p.id}`;
+    for(let q=1;q<=100;q++){ const opt=document.createElement('option'); opt.value=q; opt.textContent=q; qtySelect.appendChild(opt); }
+
+    const likeP=document.createElement('p'); likeP.className='likes';
+    const liked=!!userLikes[p.id]; likeP.textContent='❤️ '+(p.likes||0);
+    if(!liked){ likeP.style.cursor='pointer'; likeP.onclick=()=>{ if(!userLikes[p.id]){p.likes=(p.likes||0)+1; userLikes[p.id]=true; displayProducts(document.getElementById('searchBar').value||''); } } }
+    else{ likeP.style.opacity=0.6; likeP.style.cursor='default'; }
+
+    const viewsP=document.createElement('p'); viewsP.className='views'; viewsP.textContent='👁 '+(p.views||0);
+
+    const locInput=document.createElement('input'); locInput.type='text'; locInput.placeholder='Enter your location'; locInput.id=`loc_${p.id}`;
+    const orderBtn=document.createElement('button'); orderBtn.className='btn'; orderBtn.textContent='Order via WhatsApp';
+    orderBtn.onclick=()=>{ const qty=qtySelect.value; const loc=locInput.value.trim(); if(!loc){ alert('Enter location'); return; } window.open(`https://wa.me/${p.whatsapp}?text=${encodeURIComponent(`I want to buy ${qty} of ${p.name} for ₹${p.price} each.\nLocation: ${loc}`)}`, '_blank'); };
+
+    card.appendChild(media); card.appendChild(title); card.appendChild(price); card.appendChild(qtyLabel); card.appendChild(qtySelect);
+    card.appendChild(likeP); card.appendChild(viewsP); card.appendChild(locInput); card.appendChild(orderBtn);
+    container.appendChild(card);
+  });
+  localStorage.setItem(STORAGE_PRODUCTS,JSON.stringify(products));
+}
+
+/* Search */
+function searchProducts(){ displayProducts(document.getElementById('searchBar').value||''); }
+
+/* Initialize */
+displayProducts();
+</script>
+</body>
+</html>
